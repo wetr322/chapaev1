@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Чапаев — ULTIMATE 30s EDIT</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(circle at 50% 30%, #1a1a1a, #050505 80%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;
+    color: #fff; user-select: none; overflow: hidden;
+  }
+  #hud {
+    display: flex; gap: 40px; margin-bottom: 10px;
+    font-size: 18px; font-weight: bold; align-items: center;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8), 0 0 12px currentColor;
+  }
+  #turn { min-width: 240px; text-align: center; transition: color .2s; }
+  .red { color: #ff5050; }
+  .blue { color: #5090ff; }
+  #stage { position: relative; }
+  canvas {
+    background: #141414;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9), inset 0 0 80px rgba(0,0,0,0.6);
+    cursor: crosshair; touch-action: none;
+    display: block;
+  }
+  #hint {
+    margin-top: 10px; font-size: 13px; color: #777;
+    text-align: center; max-width: 700px;
+  }
+  #win {
+    position: fixed; inset: 0; display: none;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(0,0,0,0.85); font-size: 46px; font-weight: bold; gap: 20px; z-index: 10;
+    animation: fadeIn .5s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #win button {
+    font-size: 20px; padding: 12px 34px; border: none; border-radius: 10px;
+    background: #444; color: #fff; cursor: pointer; transition: .2s;
+  }
+  #win button:hover { background: #666; transform: scale(1.05); }
+
+  #overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    border-radius: 10px; overflow: hidden;
+  }
+  #flash {
+    position: absolute; inset: 0; background: #fff; opacity: 0;
+    transition: opacity .08s linear; mix-blend-mode: screen;
+  }
+  #chroma {
+    position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    mix-blend-mode: screen;
+    background:
+      linear-gradient(90deg, rgba(255,0,60,0.5), transparent 40%),
+      linear-gradient(270deg, rgba(0,200,255,0.5), transparent 40%);
+    transition: opacity .12s;
+  }
+  #scanlines {
+    position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px,
+      transparent 1px, transparent 3px
+    );
+    mix-blend-mode: overlay;
+    transition: opacity .2s;
+  }
+  #noise {
+    position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+    animation: noiseShift .12s steps(2) infinite;
+  }
+  @keyframes noiseShift {
+    0%   { transform: translate(0,0); }
+    50%  { transform: translate(-4px, 4px); }
+    100% { transform: translate(4px, -4px); }
+  }
+  #matrix {
+    position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    mix-blend-mode: screen;
+    background: repeating-linear-gradient(180deg,
+      transparent 0, transparent 8px,
+      rgba(0,255,100,0.08) 8px, rgba(0,255,100,0.08) 9px);
+    animation: matrixScroll 0.15s linear infinite;
+  }
+  @keyframes matrixScroll {
+    from { background-position: 0 0; }
+    to   { background-position: 0 18px; }
+  }
+  #vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 200px rgba(0,0,0,0.9);
+    border-radius: 10px;
+  }
+  #slowmoVignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.6) 100%);
+    opacity: 0; transition: opacity .3s;
+    border-radius: 10px;
+  }
+  #banner {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    font-size: 80px; font-weight: 900;
+    color: #fff; text-shadow: 0 0 30px currentColor, 0 6px 0 #000;
+    pointer-events: none; letter-spacing: 6px;
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    animation: bannerPulse .35s ease-out;
+  }
+  @keyframes bannerPulse {
+    0%   { transform: scale(2.4) rotate(-6deg); opacity: 0; }
+    40%  { transform: scale(0.95) rotate(-2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  #freezeFrame {
+    position: absolute; inset: 0; pointer-events: none;
+    background: #000; opacity: 0; transition: opacity .05s;
+    border-radius: 10px;
+  }
+  #radialBurst {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9), transparent 60%);
+    mix-blend-mode: screen;
+    transition: opacity .15s, transform .5s;
+    transform: scale(0.5);
+  }
+  #crack {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    transition: opacity .3s;
+  }
+  #crack svg { width: 100%; height: 100%; }
+  #vhs {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    border-top: 4px solid rgba(255,255,255,0.3);
+    border-bottom: 4px solid rgba(255,255,255,0.3);
+    box-shadow: inset 0 10px 20px -10px rgba(255,255,255,0.3),
+                inset 0 -10px 20px -10px rgba(255,255,255,0.3);
+    animation: vhsJitter .1s steps(2) infinite;
+  }
+  @keyframes vhsJitter {
+    0%   { transform: translate(0, 0); }
+    50%  { transform: translate(-2px, 1px); }
+    100% { transform: translate(2px, -1px); }
+  }
+  #letterbox {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: linear-gradient(#000, #000) top/100% 60px no-repeat,
+                linear-gradient(#000, #000) bottom/100% 60px no-repeat;
+    transition: opacity .4s;
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <span class="red" id="redScore">Красные: 16</span>
+  <span id="turn">Ход: Красных</span>
+  <span class="blue" id="blueScore">Синие: 16</span>
+</div>
+
+<div id="stage">
+  <canvas id="game" width="760" height="760"></canvas>
+  <div id="overlay">
+    <div id="flash"></div>
+    <div id="radialBurst"></div>
+    <div id="chroma"></div>
+    <div id="scanlines"></div>
+    <div id="matrix"></div>
+    <div id="noise"></div>
+    <div id="slowmoVignette"></div>
+    <div id="banner"></div>
+    <div id="freezeFrame"></div>
+    <div id="crack"></div>
+    <div id="vhs"></div>
+    <div id="letterbox"></div>
+    <div id="vignette"></div>
+  </div>
+</div>
+
+<div id="hint">Зажмите шашку и потяните назад (рогатка), отпустите — удар. R — рестарт.</div>
+
+<div id="win">
+  <span id="winText"></span>
+  <button onclick="restart()">Играть снова</button>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const SIZE = 760;
+const CELL = 80;
+const OFFSET = (SIZE - CELL * 8) / 2;
+
+// ---------- Физика ----------
+const FRICTION_AIR   = 0.993;
+const FRICTION_ROLL  = 0.986;
+const STOP_THRESHOLD = 0.12;
+const MAX_PULL = 200;
+const MAX_SPEED = 28;
+const RADIUS = CELL * 0.38;
+const MASS = 1;
+const RESTITUTION = 0.85;
+
+const RED = '#e04040', RED_D = '#8a2020';
+const BLUE = '#4080e0', BLUE_D = '#1f3f80';
+const LIGHT = '#f0d9b5', DARK = '#b58863';
+
+const FIELD_L = OFFSET;
+const FIELD_R = OFFSET + CELL * 8;
+const FIELD_T = OFFSET;
+const FIELD_B = OFFSET + CELL * 8;
+
+let checkers = [];
+let turn = 'red';
+let selected = null;
+let dragging = false;
+let dragStart = {x: 0, y: 0};
+let dragCur = {x: 0, y: 0};
+let gameOver = false;
+
+// ---------- МАССИВЫ ЭФФЕКТОВ (каждый объявлен РОВНО ОДИН РАЗ) ----------
+let particles = [];
+let shockwaves = [];
+let trails = [];
+let flashes = [];
+let lightnings = [];
+let textBursts = [];
+let editRings = [];
+let comets = [];
+let sparks = [];
+let stars = [];
+let shards = [];
+let lightRays = [];
+let glitches = [];
+let damageNumbers = [];
+let sonicWaves = [];
+let ufoBeams = [];
+let blackHoles = [];
+let comicHits = [];
+let galaxyDust = [];
+let spiralArms = [];
+let firePillars = [];
+let lightningBolts = [];
+let pixelFire = [];
+
+let shake = 0, shakeX = 0, shakeY = 0;
+let rotShake = 0;
+let hitStop = 0;
+let slowMo = 0;
+let comboCount = 0;
+let comboTimer = 0;
+let boardPulse = 0;
+let boardPulseColor = '#fff';
+let zoom = 1;
+
+// 🎬 30-секундный эдит
+let editTimer = 0;
+let editActive = false;
+let editOrigin = {x: SIZE/2, y: SIZE/2};
+let editColor = '#fff';
+
+const EDIT_DURATION = 30;
+
+// DOM — берём ПОСЛЕ загрузки (скрипт внизу body)
+const $flash = document.getElementById('flash');
+const $chroma = document.getElementById('chroma');
+const $scan = document.getElementById('scanlines');
+const $slow = document.getElementById('slowmoVignette');
+const $banner = document.getElementById('banner');
+const $noise = document.getElementById('noise');
+const $freeze = document.getElementById('freezeFrame');
+const $radial = document.getElementById('radialBurst');
+const $matrix = document.getElementById('matrix');
+const $crack = document.getElementById('crack');
+const $vhs = document.getElementById('vhs');
+const $letterbox = document.getElementById('letterbox');
+
+// svg-трещина
+$crack.innerHTML = '<svg viewBox="0 0 760 760" preserveAspectRatio="none">'
+  + '<path d="M 380 0 L 360 120 L 400 200 L 340 320 L 380 400 L 300 540 L 380 760" stroke="#fff" stroke-width="4" fill="none" opacity="0.9"/>'
+  + '<path d="M 0 380 L 120 360 L 200 420 L 320 380 L 400 420 L 540 380 L 760 400" stroke="#fff" stroke-width="4" fill="none" opacity="0.9"/>'
+  + '</svg>';
+
+function cellCenter(col, row) {
+  return { x: OFFSET + col * CELL + CELL / 2, y: OFFSET + row * CELL + CELL / 2 };
+}
+
+function createCheckers() {
+  checkers = [];
+  for (let row = 6; row < 8; row++)
+    for (let col = 0; col < 8; col++) {
+      const p = cellCenter(col, row);
+      checkers.push(makeChecker(p.x, p.y, 'red'));
+    }
+  for (let row = 0; row < 2; row++)
+    for (let col = 0; col < 8; col++) {
+      const p = cellCenter(col, row);
+      checkers.push(makeChecker(p.x, p.y, 'blue'));
+    }
+}
+
+function makeChecker(x, y, color) {
+  return {
+    x, y, vx: 0, vy: 0,
+    angle: Math.random() * Math.PI * 2,
+    omega: 0,
+    color, alive: true,
+    mass: MASS,
+    hitFlash: 0
+  };
+}
+
+function restart() {
+  createCheckers();
+  turn = 'red'; selected = null; dragging = false; gameOver = false;
+  particles = []; shockwaves = []; trails = []; flashes = [];
+  lightnings = []; textBursts = []; editRings = []; comets = [];
+  sparks = []; stars = []; shards = []; lightRays = [];
+  glitches = []; damageNumbers = []; sonicWaves = [];
+  ufoBeams = []; blackHoles = []; comicHits = [];
+  galaxyDust = []; spiralArms = []; firePillars = [];
+  lightningBolts = []; pixelFire = [];
+  shake = 0; hitStop = 0; slowMo = 0; comboCount = 0; comboTimer = 0;
+  boardPulse = 0; zoom = 1; rotShake = 0;
+  editActive = false; editTimer = 0;
+  resetDOMPostFx();
+  document.getElementById('win').style.display = 'none';
+  $banner.style.display = 'none';
+}
+
+// ---------- 🎬 30-СЕКУНДНЫЙ МЕГА-ЭДИТ ----------
+function startMegaEdit(x, y, color) {
+  editActive = true;
+  editTimer = EDIT_DURATION;
+  editOrigin = { x, y };
+  editColor = color;
+
+  freezeFrame(180);
+  shake = 38; hitStop = 0.25; slowMo = 0.8; zoom = 1.18; rotShake = 0.06;
+  radialBurst();
+
+  // 8 волн взрывов
+  for (let wave = 0; wave < 8; wave++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      spawnBurst(x, y, color, 50);
+      spawnBurst(x, y, '#ffcc55', 30);
+      spawnBurst(x, y, '#ffffff', 20);
+      shockwaves.push({ x, y, r: 5, maxR: 200 + wave * 60, life: 1, color: '#ffffff' });
+      editRings.push({ x, y, r: 8, maxR: 280 + wave * 70, life: 1,
+                       color: wave % 2 ? color : '#ffcc55', width: 10 });
+      screenFlash(color, 0.5);
+    }, wave * 240);
+  }
+
+  // 20 молний
+  for (let i = 0; i < 20; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      spawnLightning(x, y);
+    }, 300 + i * 130);
+  }
+
+  // 16 световых лучей
+  for (let i = 0; i < 16; i++) {
+    lightRays.push({
+      x, y, angle: (i / 16) * Math.PI * 2 + Math.random() * 0.3,
+      len: 240 + Math.random() * 500, life: 1,
+      color: Math.random() > 0.5 ? color : '#ffcc55', width: 4 + Math.random() * 8
+    });
+  }
+
+  // 15 комет
+  for (let i = 0; i < 15; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      const ang = Math.random() * Math.PI * 2;
+      comets.push({
+        x, y, vx: Math.cos(ang) * 9, vy: Math.sin(ang) * 9,
+        life: 1, color, size: 6 + Math.random() * 7
+      });
+    }, i * 100);
+  }
+
+  // 12 звёзд
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      stars.push({
+        x: Math.random() * SIZE, y: Math.random() * SIZE,
+        size: 25 + Math.random() * 50, life: 1, rot: Math.random() * Math.PI
+      });
+    }, 300 + i * 120);
+  }
+
+  // 8 глитчей
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      glitches.push({ life: 1, offset: (Math.random() - 0.5) * 50 });
+      $noise.style.opacity = 0.4;
+    }, 400 + i * 250);
+  }
+
+  // MATRIX
+  setTimeout(() => {
+    if (!editActive) return;
+    $matrix.style.opacity = 0.6;
+    showBanner('ENTER THE MATRIX', '#00ff66');
+    setTimeout(() => $matrix.style.opacity = 0, 2500);
+  }, 1500);
+
+  // CRACK
+  setTimeout(() => {
+    if (!editActive) return;
+    $crack.style.opacity = 1;
+    showBanner('SCREEN CRACK', '#ff5050');
+    shake = 30;
+    setTimeout(() => $crack.style.opacity = 0, 1800);
+  }, 4000);
+
+  // VHS
+  setTimeout(() => {
+    if (!editActive) return;
+    $vhs.style.opacity = 1;
+    $noise.style.opacity = 0.5;
+    $chroma.style.opacity = 1;
+    showBanner('VHS MODE', '#ffffff');
+    setTimeout(() => {
+      $vhs.style.opacity = 0;
+      $chroma.style.opacity = 0.3;
+    }, 2000);
+  }, 6000);
+
+  // CINEMATIC
+  setTimeout(() => {
+    if (!editActive) return;
+    $letterbox.style.opacity = 1;
+    showBanner('CINEMATIC', '#ffcc55');
+    setTimeout(() => $letterbox.style.opacity = 0, 3000);
+  }, 8000);
+
+  // SONIC BOOM
+  setTimeout(() => {
+    if (!editActive) return;
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => {
+        if (!editActive) return;
+        sonicWaves.push({ x, y, r: 10, life: 1, color: '#ffffff' });
+      }, i * 200);
+    }
+    showBanner('SONIC BOOM', '#00ccff');
+  }, 11000);
+
+  // UFO BEAM
+  setTimeout(() => {
+    if (!editActive) return;
+    ufoBeams.push({ x, y, life: 1, angle: 0 });
+    showBanner('UFO BEAM', '#00ff88');
+  }, 14000);
+
+  // BLACK HOLE
+  setTimeout(() => {
+    if (!editActive) return;
+    blackHoles.push({ x, y, r: 0, maxR: 180, life: 1 });
+    showBanner('BLACK HOLE', '#aa00ff');
+  }, 17000);
+
+  // FIRE STORM
+  setTimeout(() => {
+    if (!editActive) return;
+    for (let i = 0; i < 8; i++) {
+      firePillars.push({
+        x: Math.random() * SIZE, y: SIZE, life: 1,
+        height: 100 + Math.random() * 300, width: 20 + Math.random() * 40
+      });
+    }
+    showBanner('FIRE STORM', '#ff6600');
+  }, 20000);
+
+  // THUNDER
+  setTimeout(() => {
+    if (!editActive) return;
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        if (!editActive) return;
+        lightningBolts.push({
+          x: Math.random() * SIZE, y: 0, life: 1,
+          points: generateLightningPoints(
+            Math.random() * SIZE, 0,
+            Math.random() * SIZE, SIZE
+          )
+        });
+      }, i * 200);
+    }
+    showBanner('THUNDER!', '#ffff00');
+  }, 23000);
+
+  // GALAXY
+  setTimeout(() => {
+    if (!editActive) return;
+    for (let arm = 0; arm < 4; arm++) {
+      spiralArms.push({ cx: SIZE/2, cy: SIZE/2, phase: arm * Math.PI/2, life: 1 });
+    }
+    for (let i = 0; i < 150; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 300;
+      galaxyDust.push({
+        x: SIZE/2 + Math.cos(a) * r,
+        y: SIZE/2 + Math.sin(a) * r,
+        vx: -Math.sin(a) * 2 + (Math.random()-0.5),
+        vy: Math.cos(a) * 2 + (Math.random()-0.5),
+        life: 1, color: ['#ffcc55', '#ffffff', '#ff5050', '#5090ff'][Math.floor(Math.random()*4)],
+        size: 1 + Math.random() * 3
+      });
+    }
+    showBanner('GALAXY', '#ffcc55');
+  }, 26000);
+
+  // ФИНАЛ
+  setTimeout(() => {
+    if (!editActive) return;
+    for (let i = 0; i < 6; i++) {
+      shockwaves.push({ x: SIZE/2, y: SIZE/2, r: 30, maxR: SIZE * 1.5, life: 1.5, color: '#ffffff' });
+    }
+    for (let i = 0; i < 100; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      shards.push({
+        x: SIZE/2, y: SIZE/2,
+        vx: Math.cos(ang) * (5 + Math.random() * 20),
+        vy: Math.sin(ang) * (5 + Math.random() * 20),
+        life: 1, rot: Math.random() * Math.PI,
+        rotSpeed: (Math.random() - 0.5) * 0.5,
+        color: Math.random() > 0.5 ? color : '#ffffff',
+        size: 8 + Math.random() * 14
+      });
+    }
+    screenFlash('#ffffff', 1.0);
+    radialBurst();
+    $letterbox.style.opacity = 1;
+    $crack.style.opacity = 1;
+    $matrix.style.opacity = 0.5;
+    shake = 60; zoom = 1.4;
+    showBanner('★ UNIVERSE ★', '#ffffff');
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => {
+        if (!editActive) return;
+        spawnBurst(Math.random() * SIZE, Math.random() * SIZE, '#ffcc55', 60);
+        screenFlash('#fff', 0.5);
+      }, i * 100);
+    }
+  }, 28500);
+
+  // Баннеры
+  const banners = [
+    [100, 'BAM!', color],
+    [1200, 'IMPACT!', '#ffcc55'],
+    [2400, 'DESTROYED!', color],
+    [3600, 'LEGENDARY', '#ffcc55'],
+    [5200, 'MAXIMUM', '#ff5050'],
+    [7000, 'OVERDRIVE', '#00ccff'],
+    [9000, 'UNREAL', '#ff00ff'],
+    [13000, 'GODLIKE', '#ffff00'],
+    [18000, 'INSANE', '#ff6600'],
+    [23000, 'ЧАПАЕВ!', '#ffffff'],
+    [28000, 'ULTIMATE', '#ffcc55']
+  ];
+  banners.forEach(([t, txt, c]) => {
+    setTimeout(() => { if (editActive) showBanner(txt, c); }, t);
+  });
+
+  // 80 случайных взрывов
+  for (let i = 0; i < 80; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      spawnBurst(SIZE * Math.random(), SIZE * Math.random(),
+                 Math.random() > 0.5 ? color : '#ffcc55', 5);
+    }, i * 350);
+  }
+
+  // Пиксельный огонь
+  for (let i = 0; i < 40; i++) {
+    setTimeout(() => {
+      if (!editActive) return;
+      pixelFire.push({
+        x: Math.random() * SIZE, y: SIZE,
+        vx: (Math.random() - 0.5) * 1.5, vy: -2 - Math.random() * 4,
+        life: 1, size: 6 + Math.random() * 10,
+        color: ['#ff6600', '#ffcc00', '#ff3300'][Math.floor(Math.random() * 3)]
+      });
+    }, 20000 + i * 180);
+  }
+}
+
+function generateLightningPoints(x1, y1, x2, y2) {
+  const pts = [{x: x1, y: y1}];
+  const segs = 12;
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    pts.push({
+      x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 40,
+      y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 20
+    });
+  }
+  return pts;
+}
+
+function freezeFrame(dur) {
+  $freeze.style.opacity = 1;
+  setTimeout(() => { $freeze.style.opacity = 0; }, dur);
+}
+
+function radialBurst() {
+  $radial.style.opacity = 1;
+  $radial.style.transform = 'scale(0.5)';
+  setTimeout(() => {
+    $radial.style.transform = 'scale(3.5)';
+    setTimeout(() => { $radial.style.opacity = 0; $radial.style.transform = 'scale(0.5)'; }, 400);
+  }, 30);
+}
+
+function showBanner(text, color) {
+  $banner.textContent = text;
+  $banner.style.color = color;
+  $banner.style.display = 'flex';
+  $banner.style.animation = 'none';
+  void $banner.offsetWidth;
+  $banner.style.animation = 'bannerPulse .35s ease-out';
+  clearTimeout($banner._t);
+  $banner._t = setTimeout(() => { $banner.style.display = 'none'; }, 900);
+}
+
+function resetDOMPostFx() {
+  $flash.style.opacity = 0;
+  $chroma.style.opacity = 0;
+  $scan.style.opacity = 0;
+  $slow.style.opacity = 0;
+  $noise.style.opacity = 0;
+  $freeze.style.opacity = 0;
+  $matrix.style.opacity = 0;
+  $crack.style.opacity = 0;
+  $vhs.style.opacity = 0;
+  $letterbox.style.opacity = 0;
+}
+
+function spawnLightning(x, y) {
+  const ang = Math.random() * Math.PI * 2;
+  const len = 150 + Math.random() * 350;
+  const points = [{ x, y }];
+  let cx = x, cy = y;
+  const segs = 7 + Math.floor(Math.random() * 4);
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    cx = x + Math.cos(ang + (Math.random() - 0.5) * 0.7) * len * t;
+    cy = y + Math.sin(ang + (Math.random() - 0.5) * 0.7) * len * t;
+    points.push({ x: cx, y: cy });
+  }
+  lightnings.push({ points, life: 1, color: Math.random() > 0.5 ? '#ffffff' : editColor });
+}
+
+// ---------- Физика ----------
+function step(dt) {
+  if (editActive) {
+    editTimer -= dt;
+    if (editTimer <= 0) {
+      editActive = false;
+      setTimeout(resetDOMPostFx, 400);
+    } else {
+      const t = editTimer / EDIT_DURATION;
+      $chroma.style.opacity = Math.max(0, t * 0.85);
+      $scan.style.opacity   = Math.max(0, t * 0.6);
+      $slow.style.opacity   = Math.max(0, t * 0.8);
+    }
+  }
+
+  if (hitStop > 0) { hitStop -= dt; return; }
+  const scale = slowMo > 0 ? 0.25 : 1;
+  if (slowMo > 0) slowMo -= dt;
+
+  zoom += (1 - zoom) * 0.06;
+  rotShake *= 0.92;
+  boardPulse *= 0.92;
+
+  const minX = FIELD_L - RADIUS;
+  const maxX = FIELD_R + RADIUS;
+  const minY = FIELD_T - RADIUS;
+  const maxY = FIELD_B + RADIUS;
+
+  for (const c of checkers) {
+    if (!c.alive) continue;
+    if (c.hitFlash > 0) c.hitFlash -= dt * 3;
+    c.x += c.vx * scale;
+    c.y += c.vy * scale;
+    c.angle += c.omega * scale;
+    c.omega *= FRICTION_ROLL;
+
+    const speed = Math.hypot(c.vx, c.vy);
+    const rollFactor = speed > 0.5 ? FRICTION_ROLL : FRICTION_AIR;
+    c.vx *= rollFactor;
+    c.vy *= rollFactor;
+    if (Math.hypot(c.vx, c.vy) < STOP_THRESHOLD) { c.vx = 0; c.vy = 0; }
+
+    if (speed > 1.5) {
+      trails.push({
+        x: c.x, y: c.y, color: c.color, life: 1,
+        r: RADIUS * (0.6 + Math.random() * 0.3),
+        vx: -c.vx * 0.1, vy: -c.vy * 0.1
+      });
+      if (speed > 6) {
+        sparks.push({
+          x: c.x + (Math.random() - 0.5) * RADIUS,
+          y: c.y + (Math.random() - 0.5) * RADIUS,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          life: 1, color: c.color, size: 2 + Math.random() * 2
+        });
+      }
+    }
+    if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) { destroyChecker(c); continue; }
+    if (c.vx === 0 && c.vy === 0 && !inFieldStrict(c)) destroyChecker(c);
+  }
+
+  resolveCollisions();
+  updateAll(dt);
+}
+
+function updateAll(dt) {
+  updateSimple(particles, dt, p => { p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.vx *= p.friction; p.vy *= p.friction; p.life -= dt * p.decay; });
+  updateSimple(trails, dt, t => { t.x += t.vx; t.y += t.vy; t.vx *= 0.9; t.vy *= 0.9; t.life -= dt * 2.2; });
+  updateSimple(flashes, dt, f => { f.life -= dt * 3.5; });
+  updateSimple(lightnings, dt, l => { l.life -= dt * 3.5; });
+  updateSimple(textBursts, dt, t => { t.y += t.vy; t.life -= dt * 0.9; });
+  updateSimple(editRings, dt, r => { r.r += (r.maxR - r.r) * 0.12; r.life -= dt * 1.2; });
+  updateSimple(sparks, dt, s => { s.x += s.vx; s.y += s.vy; s.vx *= 0.95; s.vy *= 0.95; s.life -= dt * 2.5; });
+  updateSimple(stars, dt, s => { s.rot += dt * 1.5; s.life -= dt * 1.5; });
+  updateSimple(lightRays, dt, r => { r.life -= dt * 1.8; });
+  updateSimple(glitches, dt, g => { g.life -= dt * 4; });
+  updateSimple(damageNumbers, dt, d => { d.y += d.vy; d.life -= dt * 0.7; });
+  updateSimple(sonicWaves, dt, s => { s.r += 18; s.life -= dt * 1.5; });
+  updateSimple(ufoBeams, dt, u => { u.life -= dt * 0.6; u.angle += dt * 3; });
+  updateSimple(comicHits, dt, c => { c.life -= dt * 1.5; });
+  updateSimple(galaxyDust, dt, g => { g.x += g.vx; g.y += g.vy; g.life -= dt * 0.3; });
+  updateSimple(spiralArms, dt, s => { s.phase += dt * 1.5; s.life -= dt * 0.4; });
+  updateSimple(firePillars, dt, f => { f.height += dt * 40; f.life -= dt * 0.4; });
+  updateSimple(lightningBolts, dt, l => { l.life -= dt * 3; });
+  updateSimple(pixelFire, dt, p => { p.x += p.vx; p.y += p.vy; p.vy -= 0.05; p.life -= dt * 0.8; });
+
+  // Кометы оставляют частицы
+  for (let i = comets.length - 1; i >= 0; i--) {
+    const c = comets[i];
+    c.x += c.vx; c.y += c.vy;
+    c.vx *= 0.98; c.vy *= 0.98;
+    c.life -= dt * 1.5;
+    if (c.life <= 0) { comets.splice(i, 1); continue; }
+    particles.push({
+      x: c.x, y: c.y, vx: (Math.random()-0.5), vy: (Math.random()-0.5),
+      life: c.life * 0.7, decay: 2, color: c.color,
+      size: 2 + Math.random()*3, gravity: 0, friction: 0.95
+    });
+  }
+
+  // Ударные волны
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const s = shockwaves[i];
+    s.r += (s.maxR - s.r) * 0.18;
+    s.life -= dt * 1.8;
+    if (s.life <= 0) shockwaves.splice(i, 1);
+  }
+
+  // Осколки
+  for (let i = shards.length - 1; i >= 0; i--) {
+    const s = shards[i];
+    s.x += s.vx; s.y += s.vy;
+    s.vy += 0.15;
+    s.vx *= 0.985; s.vy *= 0.985;
+    s.rot += s.rotSpeed;
+    s.life -= dt * 0.9;
+    if (s.life <= 0) shards.splice(i, 1);
+  }
+
+  // Чёрные дыры притягивают
+  for (const b of blackHoles) {
+    b.r += (b.maxR - b.r) * 0.08;
+    b.life -= dt * 0.35;
+    for (const p of particles) {
+      const dx = b.x - p.x, dy = b.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < b.r * 2) {
+        p.vx += (dx / d) * 0.6;
+        p.vy += (dy / d) * 0.6;
+      }
+    }
+  }
+  for (let i = blackHoles.length - 1; i >= 0; i--) {
+    if (blackHoles[i].life <= 0) blackHoles.splice(i, 1);
+  }
+
+  if (shake > 0) shake *= 0.9;
+  if (shake < 0.2) shake = 0;
+  shakeX = (Math.random() - 0.5) * shake;
+  shakeY = (Math.random() - 0.5) * shake;
+
+  if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) comboCount = 0; }
+}
+
+// helper: обновить простой массив и удалить просроченные
+function updateSimple(arr, dt, fn) {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    fn(arr[i]);
+    if (arr[i].life <= 0) arr.splice(i, 1);
+  }
+}
+
+function destroyChecker(c) {
+  c.alive = false;
+  c.vx = 0; c.vy = 0;
+  for (let i = 0; i < 30; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    shards.push({
+      x: c.x, y: c.y,
+      vx: Math.cos(ang) * (2 + Math.random() * 10),
+      vy: Math.sin(ang) * (2 + Math.random() * 10),
+      life: 1, rot: Math.random() * Math.PI,
+      rotSpeed: (Math.random() - 0.5) * 0.5,
+      color: c.color === 'red' ? RED : BLUE,
+      size: 4 + Math.random() * 8
+    });
+  }
+  spawnBurst(c.x, c.y, c.color, 25);
+  spawnBurst(c.x, c.y, '#ffcc55', 15);
+  shockwaves.push({ x: c.x, y: c.y, r: 4, maxR: 130, life: 1, color: '#ffffff' });
+  flashes.push({ x: c.x, y: c.y, r: RADIUS * 3.5, life: 1, color: '#ffffff' });
+  shake = Math.max(shake, 16);
+  screenFlash(c.color === 'red' ? RED : BLUE, 0.25);
+  textBursts.push({ x: c.x, y: c.y, text: 'OUT!', life: 1, color: c.color, size: 40, vy: -1.4 });
+  damageNumbers.push({ x: c.x, y: c.y - 30, text: '+1', life: 1, color: '#ffcc55', size: 22, vy: -1.5 });
+  boardPulse = 1; boardPulseColor = c.color === 'red' ? RED : BLUE;
+  comicHits.push({ x: c.x, y: c.y, life: 1, text: 'POW!' });
+}
+
+function inFieldStrict(c) {
+  return c.x > FIELD_L && c.x < FIELD_R && c.y > FIELD_T && c.y < FIELD_B;
+}
+function inField(c) {
+  return c.x >= FIELD_L - RADIUS * 0.01 && c.x <= FIELD_R + RADIUS * 0.01 &&
+         c.y >= FIELD_T - RADIUS * 0.01 && c.y <= FIELD_B + RADIUS * 0.01;
+}
+function aliveInField(color) {
+  let n = 0;
+  for (const c of checkers)
+    if (c.alive && inField(c) && c.color === color) n++;
+  return n;
+}
+
+function resolveCollisions() {
+  for (let i = 0; i < checkers.length; i++) {
+    const a = checkers[i];
+    if (!a.alive || !inField(a)) continue;
+    for (let j = i + 1; j < checkers.length; j++) {
+      const b = checkers[j];
+      if (!b.alive || !inField(b)) continue;
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.hypot(dx, dy);
+      const minDist = RADIUS * 2;
+      if (dist >= minDist || dist === 0) continue;
+      const nx = dx / dist, ny = dy / dist;
+      const overlap = (minDist - dist);
+      const totalM = a.mass + b.mass;
+      a.x -= nx * overlap * (b.mass / totalM);
+      a.y -= ny * overlap * (b.mass / totalM);
+      b.x += nx * overlap * (a.mass / totalM);
+      b.y += ny * overlap * (a.mass / totalM);
+      const rvx = b.vx - a.vx;
+      const rvy = b.vy - a.vy;
+      const velAlongNormal = rvx * nx + rvy * ny;
+      if (velAlongNormal > 0) continue;
+      const relSpeed = Math.hypot(rvx, rvy);
+      if (relSpeed > 2) {
+        const px = a.x + nx * RADIUS, py = a.y + ny * RADIUS;
+        spawnBurst(px, py, a.color, Math.min(relSpeed, 22));
+        spawnBurst(px, py, b.color, Math.min(relSpeed, 22));
+        shockwaves.push({ x: px, y: py, r: 4, maxR: 60 + relSpeed * 3, life: 1, color: '#ffffff' });
+        flashes.push({ x: px, y: py, r: RADIUS * 2.5, life: 1, color: '#ffffff' });
+        shake = Math.max(shake, Math.min(relSpeed * 0.8, 16));
+        a.hitFlash = 1; b.hitFlash = 1;
+        if (relSpeed > 8) {
+          hitStop = 0.08; slowMo = 0.2;
+          screenFlash(a.color, 0.15);
+          comboCount++; comboTimer = 1.6;
+          textBursts.push({
+            x: (a.x + b.x) / 2, y: (a.y + b.y) / 2,
+            text: 'x' + comboCount, life: 1, color: '#ffcc55', size: 30 + comboCount * 4, vy: -0.9
+          });
+        }
+      }
+      const invMassA = 1 / a.mass, invMassB = 1 / b.mass;
+      const impulse = -(1 + RESTITUTION) * velAlongNormal / (invMassA + invMassB);
+      a.vx -= impulse * nx * invMassA;
+      a.vy -= impulse * ny * invMassA;
+      b.vx += impulse * nx * invMassB;
+      b.vy += impulse * ny * invMassB;
+      const tx = -ny, ty = nx;
+      const tanA = a.vx * tx + a.vy * ty;
+      const tanB = b.vx * tx + b.vy * ty;
+      const tanAvg = (tanA + tanB) / 2 * 0.9;
+      a.vx += (tanAvg - tanA) * tx * 0.06;
+      a.vy += (tanAvg - tanA) * ty * 0.06;
+      b.vx += (tanAvg - tanB) * tx * 0.06;
+      b.vy += (tanAvg - tanB) * ty * 0.06;
+      a.omega += (tanAvg - tanA) * 0.005;
+      b.omega += (tanAvg - tanB) * 0.005;
+    }
+  }
+}
+
+function spawnBurst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const sp = 1.5 + Math.random() * 9;
+    particles.push({
+      x, y,
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: 1, decay: 0.9 + Math.random() * 1.2,
+      color, size: 2 + Math.random() * 5,
+      gravity: 0.03 + Math.random() * 0.06,
+      friction: 0.93 + Math.random() * 0.04
+    });
+  }
+}
+
+function screenFlash(color, intensity) {
+  $flash.style.background = color;
+  $flash.style.opacity = intensity;
+  setTimeout(() => { $flash.style.opacity = 0; }, 90);
+}
+
+// ---------- Отрисовка ----------
+function draw() {
+  ctx.save();
+  ctx.translate(SIZE/2, SIZE/2);
+  ctx.scale(zoom, zoom);
+  ctx.rotate(rotShake);
+  ctx.translate(-SIZE/2, -SIZE/2);
+  if (shake > 0.5) ctx.translate(shakeX, shakeY);
+
+  ctx.clearRect(-100, -100, SIZE + 200, SIZE + 200);
+
+  // Доска
+  for (let row = 0; row < 8; row++)
+    for (let col = 0; col < 8; col++) {
+      const base = (row + col) % 2 === 0 ? LIGHT : DARK;
+      ctx.fillStyle = base;
+      ctx.fillRect(OFFSET + col * CELL, OFFSET + row * CELL, CELL, CELL);
+      if (boardPulse > 0.05) {
+        ctx.fillStyle = boardPulseColor;
+        ctx.globalAlpha = boardPulse * 0.25;
+        ctx.fillRect(OFFSET + col * CELL, OFFSET + row * CELL, CELL, CELL);
+        ctx.globalAlpha = 1;
+      }
+    }
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(OFFSET, OFFSET, CELL * 8, CELL * 8);
+
+  // Галактическая пыль
+  for (const g of galaxyDust) {
+    ctx.globalAlpha = g.life;
+    ctx.fillStyle = g.color;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Спиральные рукава
+  for (const s of spiralArms) {
+    ctx.globalAlpha = s.life * 0.6;
+    ctx.strokeStyle = '#ffcc55';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let t = 0; t < Math.PI * 4; t += 0.1) {
+      const r = t * 25;
+      const x = s.cx + Math.cos(t + s.phase) * r;
+      const y = s.cy + Math.sin(t + s.phase) * r;
+      if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Световые лучи
+  for (const r of lightRays) {
+    ctx.globalAlpha = r.life * 0.7;
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = r.width * r.life;
+    ctx.shadowColor = r.color;
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x + Math.cos(r.angle) * r.len, r.y + Math.sin(r.angle) * r.len);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Следы
+  for (const t of trails) {
+    ctx.globalAlpha = t.life * 0.25;
+    ctx.fillStyle = t.color === 'red' ? RED : BLUE;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Молнии
+  for (const L of lightnings) {
+    ctx.globalAlpha = L.life;
+    ctx.strokeStyle = L.color;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = L.color;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(L.points[0].x, L.points[0].y);
+    for (let i = 1; i < L.points.length; i++) ctx.lineTo(L.points[i].x, L.points[i].y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Большие молнии
+  for (const l of lightningBolts) {
+    ctx.globalAlpha = l.life;
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = 5;
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.moveTo(l.points[0].x, l.points[0].y);
+    for (let i = 1; i < l.points.length; i++) ctx.lineTo(l.points[i].x, l.points[i].y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Кольца эдита
+  for (const r of editRings) {
+    ctx.globalAlpha = r.life;
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = r.width * r.life;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Ударные волны
+  for (const s of shockwaves) {
+    ctx.globalAlpha = s.life;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 3 * s.life + 0.5;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Звуковые волны
+  for (const s of sonicWaves) {
+    ctx.globalAlpha = s.life * 0.8;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 8 * s.life;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // UFO лучи
+  for (const u of ufoBeams) {
+    ctx.globalAlpha = u.life * 0.6;
+    const grad = ctx.createLinearGradient(u.x, u.y - 400, u.x, u.y + 200);
+    grad.addColorStop(0, 'rgba(0,255,136,0.9)');
+    grad.addColorStop(1, 'rgba(0,255,136,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(u.x - 20, u.y - 400);
+    ctx.lineTo(u.x + 20, u.y - 400);
+    ctx.lineTo(u.x + 120, u.y + 200);
+    ctx.lineTo(u.x - 120, u.y + 200);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Чёрные дыры
+  for (const b of blackHoles) {
+    ctx.globalAlpha = b.life;
+    const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+    grad.addColorStop(0, '#000');
+    grad.addColorStop(0.6, '#1a0030');
+    grad.addColorStop(0.9, '#aa00ff');
+    grad.addColorStop(1, 'rgba(170,0,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Огненные столбы
+  for (const f of firePillars) {
+    ctx.globalAlpha = f.life * 0.7;
+    const grad = ctx.createLinearGradient(0, f.y, 0, f.y - f.height);
+    grad.addColorStop(0, '#ff3300');
+    grad.addColorStop(0.5, '#ff6600');
+    grad.addColorStop(1, 'rgba(255,204,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(f.x - f.width/2, f.y - f.height, f.width, f.height);
+  }
+  ctx.globalAlpha = 1;
+
+  // Кометы
+  for (const c of comets) {
+    ctx.globalAlpha = c.life;
+    const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.size * 3);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.4, c.color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.size * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Звёзды
+  for (const s of stars) {
+    ctx.globalAlpha = s.life;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffcc55';
+    ctx.shadowBlur = 30;
+    drawStar(ctx, 0, 0, 5, s.size, s.size * 0.45);
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Осколки
+  for (const s of shards) {
+    ctx.globalAlpha = s.life;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    ctx.fillStyle = s.color;
+    ctx.fillRect(-s.size/2, -s.size/2, s.size, s.size * 0.7);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // Шашки
+  for (const c of checkers) {
+    if (!c.alive) continue;
+    if (c.x < -RADIUS || c.x > SIZE + RADIUS || c.y < -RADIUS || c.y > SIZE + RADIUS) continue;
+    if (c.hitFlash > 0) {
+      ctx.globalAlpha = c.hitFlash * 0.6;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, RADIUS + 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.arc(c.x + 4, c.y + 5, RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.angle);
+    ctx.beginPath();
+    ctx.fillStyle = c.color === 'red' ? RED_D : BLUE_D;
+    ctx.arc(0, 0, RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = c.color === 'red' ? RED : BLUE;
+    ctx.arc(0, 0, RADIUS - 3, 0, Math.PI * 2);
+    ctx.fill();
+    const grad = ctx.createRadialGradient(-RADIUS*0.3, -RADIUS*0.35, 2, 0, 0, RADIUS);
+    grad.addColorStop(0, 'rgba(255,255,255,0.55)');
+    grad.addColorStop(0.4, 'rgba(255,255,255,0.05)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.beginPath();
+    ctx.fillStyle = grad;
+    ctx.arc(0, 0, RADIUS - 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = c.color === 'red' ? RED_D : BLUE_D;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, RADIUS - 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -RADIUS*0.5);
+    ctx.lineTo(RADIUS*0.5, 0);
+    ctx.lineTo(0, RADIUS*0.5);
+    ctx.lineTo(-RADIUS*0.5, 0);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Частицы
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Искры
+  for (const s of sparks) {
+    ctx.globalAlpha = s.life;
+    ctx.fillStyle = s.color;
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  // Локальные вспышки
+  for (const f of flashes) {
+    ctx.globalAlpha = f.life * 0.7;
+    const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+    g.addColorStop(0, f.color);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Комикс-вспышки
+  for (const c of comicHits) {
+    ctx.globalAlpha = c.life;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    const scale = 1 + (1 - c.life) * 1.5;
+    ctx.scale(scale, scale);
+    ctx.font = 'bold 42px Impact, Arial Black, sans-serif';
+    ctx.fillStyle = '#ffff00';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5;
+    ctx.textAlign = 'center';
+    ctx.strokeText(c.text, 0, 0);
+    ctx.fillText(c.text, 0, 0);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // Плавающий текст
+  for (const t of textBursts) {
+    ctx.globalAlpha = t.life;
+    ctx.font = `bold ${t.size}px Impact, Arial Black, sans-serif`;
+    ctx.fillStyle = t.color;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.textAlign = 'center';
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillText(t.text, t.x, t.y);
+  }
+  for (const d of damageNumbers) {
+    ctx.globalAlpha = d.life;
+    ctx.font = `bold ${d.size}px Arial`;
+    ctx.fillStyle = d.color;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 3;
+    ctx.textAlign = 'center';
+    ctx.strokeText(d.text, d.x, d.y);
+    ctx.fillText(d.text, d.x, d.y);
+  }
+  ctx.globalAlpha = 1;
+
+  // Пиксельный огонь
+  for (const p of pixelFire) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // Прицел
+  if (dragging && selected && selected.alive) {
+    let dx = dragStart.x - dragCur.x;
+    let dy = dragStart.y - dragCur.y;
+    const pull = Math.min(Math.hypot(dx, dy), MAX_PULL);
+    const ang = Math.atan2(dy, dx);
+    const power = (pull / MAX_PULL) * MAX_SPEED;
+
+    let px = selected.x, py = selected.y;
+    let pvx = Math.cos(ang) * power;
+    let pvy = Math.sin(ang) * power;
+    ctx.setLineDash([4, 10]);
+    ctx.strokeStyle = 'rgba(255,255,120,0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    for (let i = 0; i < 25; i++) {
+      px += pvx; py += pvy;
+      pvx *= FRICTION_ROLL; pvy *= FRICTION_ROLL;
+      ctx.lineTo(px, py);
+      if (px < FIELD_L - RADIUS || px > FIELD_R + RADIUS ||
+          py < FIELD_T - RADIUS || py > FIELD_B + RADIUS) break;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const ex = selected.x + Math.cos(ang) * pull * 0.9;
+    const ey = selected.y + Math.sin(ang) * pull * 0.9;
+    ctx.strokeStyle = 'rgba(255,255,120,0.95)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(selected.x, selected.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,120,0.95)';
+    ctx.beginPath();
+    ctx.arc(ex, ey, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    const auraGrad = ctx.createRadialGradient(selected.x, selected.y, RADIUS, selected.x, selected.y, RADIUS * 2.5);
+    auraGrad.addColorStop(0, 'rgba(255,255,120,0.4)');
+    auraGrad.addColorStop(1, 'rgba(255,255,120,0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(selected.x, selected.y, RADIUS * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const bw = 160, bh = 16, bx = SIZE - bw - 20, by = 20;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = `hsl(${120 - (power / MAX_SPEED) * 120},90%,55%)`;
+    ctx.fillRect(bx, by, bw * (pull / MAX_PULL), bh);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.fillText('Сила', bx, by + bh + 14);
+  }
+
+  // Индикатор эдита
+  if (editActive && editTimer > 0) {
+    const p = editTimer / EDIT_DURATION;
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(20, SIZE - 20, SIZE - 40, 6);
+    ctx.fillStyle = `hsl(${p * 300}, 90%, 60%)`;
+    ctx.fillRect(20, SIZE - 20, (SIZE - 40) * p, 6);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('ULTIMATE EDIT ' + editTimer.toFixed(1) + 's', 20, SIZE - 26);
+  }
+
+  ctx.restore();
+}
+
+function drawStar(ctx, cx, cy, spikes, outer, inner) {
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ---------- Цикл ----------
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  step(dt);
+  draw();
+  updateHUD();
+  checkWin();
+  requestAnimationFrame(loop);
+}
+
+function updateHUD() {
+  document.getElementById('redScore').textContent = 'Красные: ' + aliveInField('red');
+  document.getElementById('blueScore').textContent = 'Синие: ' + aliveInField('blue');
+  const t = document.getElementById('turn');
+  t.textContent = 'Ход: ' + (turn === 'red' ? 'Красных' : 'Синих');
+  t.className = turn === 'red' ? 'red' : 'blue';
+}
+
+function checkWin() {
+  if (gameOver) return;
+  const r = aliveInField('red');
+  const b = aliveInField('blue');
+  if (r === 0 || b === 0) {
+    gameOver = true;
+    const win = document.getElementById('win');
+    const txt = document.getElementById('winText');
+    if (b === 0) { txt.textContent = 'Победа: КРАСНЫЕ!'; txt.className = 'red'; }
+    else         { txt.textContent = 'Победа: СИНИЕ!';   txt.className = 'blue'; }
+    win.style.display = 'flex';
+    startMegaEdit(SIZE / 2, SIZE / 2, b === 0 ? RED : BLUE);
+    showBanner('VICTORY!', b === 0 ? RED : BLUE);
+  }
+}
+
+// ---------- Ввод ----------
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const p = e.touches ? e.touches[0] : e;
+  return {
+    x: (p.clientX - r.left) * (SIZE / r.width),
+    y: (p.clientY - r.top)  * (SIZE / r.height)
+  };
+}
+
+function down(e) {
+  e.preventDefault();
+  if (gameOver || anyMoving()) return;
+  if (editActive) return;
+  const pos = getPos(e);
+  let best = null, bestDist = Infinity;
+  for (const c of checkers) {
+    if (!c.alive || !inFieldStrict(c)) continue;
+    if (c.color !== turn) continue;
+    const d = Math.hypot(pos.x - c.x, pos.y - c.y);
+    if (d < RADIUS && d < bestDist) { best = c; bestDist = d; }
+  }
+  if (best) {
+    selected = best; dragging = true;
+    dragStart = pos; dragCur = pos;
+  }
+}
+
+function move(e) {
+  if (!dragging) return;
+  e.preventDefault();
+  dragCur = getPos(e);
+}
+
+function up(e) {
+  if (!dragging || !selected) return;
+  e.preventDefault();
+  let dx = dragStart.x - dragCur.x;
+  let dy = dragStart.y - dragCur.y;
+  const pull = Math.hypot(dx, dy);
+  if (pull > 8) {
+    const k = Math.min(pull, MAX_PULL) / MAX_PULL;
+    const ang = Math.atan2(dy, dx);
+    selected.vx = Math.cos(ang) * k * MAX_SPEED;
+    selected.vy = Math.sin(ang) * k * MAX_SPEED;
+    selected.omega = (Math.random() - 0.5) * k * 0.8;
+    turn = turn === 'red' ? 'blue' : 'red';
+    startMegaEdit(selected.x, selected.y, selected.color === 'red' ? RED : BLUE);
+    spawnBurst(selected.x, selected.y, selected.color, 25);
+    shake = Math.max(shake, 10 + k * 16);
+  }
+  selected = null;
+  dragging = false;
+}
+
+function anyMoving() {
+  for (const c of checkers)
+    if (c.alive && inField(c) && (c.vx !== 0 || c.vy !== 0)) return true;
+  return false;
+}
+
+canvas.addEventListener('mousedown', down);
+window.addEventListener('mousemove', move);
+window.addEventListener('mouseup', up);
+canvas.addEventListener('touchstart', down, {passive: false});
+canvas.addEventListener('touchmove', move, {passive: false});
+window.addEventListener('touchend', up, {passive: false});
+window.addEventListener('keydown', e => { if (e.key === 'r' || e.key === 'R') restart(); });
+
+restart();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
